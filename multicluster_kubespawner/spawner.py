@@ -119,7 +119,7 @@ class MultiClusterKubernetesSpawner(Spawner):
         if (await proc.wait()) != 0:
             raise ValueError(f"kubectl apply failed: {stdout}, {stderr}")
 
-    async def kubectl_wait(self, timeout):
+    async def kubectl_wait(self, timeout=30):
         proc = await asyncio.create_subprocess_exec(
             "kubectl",
             "wait",
@@ -127,7 +127,7 @@ class MultiClusterKubernetesSpawner(Spawner):
             f"pod/{self.key}",
             f"--timeout={timeout}s",
         )
-        await proc.wait()
+        return await proc.wait()
 
     async def start(self):
         spec = self.get_objects_spec()
@@ -154,4 +154,7 @@ class MultiClusterKubernetesSpawner(Spawner):
             print(stdout, stderr)
 
     async def poll(self):
-        pass
+        ret = await self.kubectl_wait()
+        if ret == 0:
+            return None
+        return ret
