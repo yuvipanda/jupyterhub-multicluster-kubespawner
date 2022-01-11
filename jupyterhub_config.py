@@ -9,6 +9,7 @@ c.Spawner.hub_connect_url = "https://34ed-36-255-233-17.ngrok.io"
 c.JupyterHub.spawner_class = MultiClusterKubernetesSpawner
 c.JupyterHub.authenticator_class = DummyAuthenticator
 
+c.MultiClusterKubernetesSpawner.ingress_public_url = "http://34.69.164.86"
 c.MultiClusterKubernetesSpawner.objects_template = """
 apiVersion: v1
 kind: Pod

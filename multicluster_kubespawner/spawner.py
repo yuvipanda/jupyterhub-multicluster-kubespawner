@@ -24,6 +24,14 @@ class MultiClusterKubernetesSpawner(Spawner):
     )
     key_template = Unicode("jupyter-{{username}}--{{servername}}", config=True)
 
+    ingress_public_url = Unicode(
+        "",
+        help="""
+        Address of the ingress controller's public endpoint in the targe cluster
+        """,
+        config=True,
+    )
+
     @property
     def template_vars(self):
         # Make sure username and servername match the restrictions for DNS labels
@@ -126,8 +134,7 @@ class MultiClusterKubernetesSpawner(Spawner):
         print("wat")
         await self.kubectl_wait()
 
-        return "http://34.69.164.86"
-        # return "http://192.168.64.3:32258"
+        return self.ingress_public_url
 
     async def stop(self):
         proc = await asyncio.create_subprocess_exec(
