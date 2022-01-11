@@ -116,38 +116,42 @@ class MultiClusterKubernetesSpawner(Spawner):
         stdout, stderr = await proc.communicate(obj.encode())
         print(stdout, stderr)
 
-        await proc.wait()
-        if proc.returncode != 0:
+        if (await proc.wait()) != 0:
             raise ValueError(f"kubectl apply failed: {stdout}, {stderr}")
 
-    async def kubectl_wait(self):
+    async def kubectl_wait(self, timeout):
         proc = await asyncio.create_subprocess_exec(
-            "kubectl", "wait", "--for=condition=Ready", f"pod/{self.key}"
+            "kubectl",
+            "wait",
+            "--for=condition=Ready",
+            f"pod/{self.key}",
+            f"--timeout={timeout}s",
         )
         await proc.wait()
 
     async def start(self):
-        print("hi")
         spec = self.get_objects_spec()
-        print(spec)
         await self.kubectl_apply(spec)
-        print("wat")
-        await self.kubectl_wait()
+        await self.kubectl_wait(self.start_timeout)
 
         return self.ingress_public_url
 
     async def stop(self):
-        proc = await asyncio.create_subprocess_exec(
-            "kubectl",
-            "delete",
-            "all",
-            "-l",
-            f"mcks.hub.jupyter.org/key={self.key}",
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await proc.communicate()
-        print(stdout, stderr)
+        # delete all doesn't seem to delete ingresses, lol?!
+        # https://github.com/kubernetes/kubectl/issues/7
+        resources = ["all", "ingress"]
+        for r in resources:
+            proc = await asyncio.create_subprocess_exec(
+                "kubectl",
+                "delete",
+                r,
+                "-l",
+                f"mcks.hub.jupyter.org/key={self.key}",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await proc.communicate()
+            print(stdout, stderr)
 
     async def poll(self):
         pass
