@@ -152,6 +152,10 @@ class MultiClusterKubernetesSpawner(Spawner):
         """,
     )
 
+    @default("env_keep")
+    def _env_keep_default(self):
+        return []
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Key depends on other params here, so do it last
