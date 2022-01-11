@@ -13,6 +13,7 @@ c.JupyterHub.authenticator_class = DummyAuthenticator
 c.MultiClusterKubernetesSpawner.profile_list = [
     {
         "display_name": "minikube",
+        "description": "Launch on local minikube",
         "spawner_override": {
             "kubernetes_context": "minikube",
             "ingress_public_url": "http://192.168.64.3:32258",
@@ -20,6 +21,7 @@ c.MultiClusterKubernetesSpawner.profile_list = [
     },
     {
         "display_name": "GKE",
+        "description": "Launch on GKE on us-central-1",
         "spawner_override": {
             "kubernetes_context": "gke_ucb-datahub-2018_us-central1_fall-2019",
             "ingress_public_url": "http://34.69.164.86",
