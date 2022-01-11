@@ -208,7 +208,6 @@ class MultiClusterKubernetesSpawner(Spawner):
         Render the templated YAML
         """
         params = self.template_vars.copy()
-        params["env"] = self.get_env()
         rendered = Template(dedent(self.objects_template)).render(**params)
         parsed = list(yaml.load_all(rendered))
 
