@@ -9,6 +9,24 @@ c.Spawner.hub_connect_url = "https://34ed-36-255-233-17.ngrok.io"
 c.JupyterHub.spawner_class = MultiClusterKubernetesSpawner
 c.JupyterHub.authenticator_class = DummyAuthenticator
 
+c.MultiClusterKubernetesSpawner.profile_list = [
+    {
+        "display_name": "minikube",
+        "spawner_override": {
+            "kubernetes_context": "minikube",
+            "ingress_public_url": "http://192.168.64.3:32258",
+        },
+    },
+    {
+        "display_name": "GKE",
+        "spawner_override": {
+            "kubernetes_context": "gke_ucb-datahub-2018_us-central1_fall-2019",
+            "ingress_public_url": "http://34.69.164.86",
+        },
+    },
+]
+
+
 c.MultiClusterKubernetesSpawner.ingress_public_url = "http://34.69.164.86"
 c.MultiClusterKubernetesSpawner.objects_template = """
 apiVersion: v1
