@@ -298,6 +298,14 @@ class MultiClusterKubernetesSpawner(Spawner):
         await self.kubectl_apply(spec)
         await self.kubectl_wait(self.start_timeout)
 
+        # We aren't waiting long enough for the ingress object to be fully
+        # picked up by the controllers.
+        # FIXME: Wait for ingress to become ready instead
+        await asyncio.sleep(1)
+
+        # We always just return the public URL of the ingress provider, as both
+        # our proxy and the ingress controller on the target cluster keep the
+        # url path intact, and route to the correct pod
         return self.ingress_public_url
 
     async def stop(self):
