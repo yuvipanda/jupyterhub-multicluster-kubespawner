@@ -3,6 +3,7 @@ from jupyterhub.auth import DummyAuthenticator
 from multicluster_kubespawner.spawner import MultiClusterKubernetesSpawner
 
 c.JupyterHub.allow_named_servers = True
+c.JupyterHub.cleanup_servers = False
 c.JupyterHub.hub_ip = "192.168.0.151"
 c.Spawner.hub_connect_url = "https://34ed-36-255-233-17.ngrok.io"
 # c.Spawner.hub_connect_ip = "192.168.0.151"

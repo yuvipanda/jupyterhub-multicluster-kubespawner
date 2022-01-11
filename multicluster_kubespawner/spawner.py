@@ -1,6 +1,4 @@
 import asyncio
-import subprocess
-import tempfile
 from tornado import gen
 from io import StringIO
 from jinja2 import Template
@@ -154,6 +152,11 @@ class MultiClusterKubernetesSpawner(Spawner):
         """,
     )
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Key depends on other params here, so do it last
+        self.key = Template(self.key_template).render(**self.template_vars).rstrip("-")
+
     @property
     def template_vars(self):
         # Make sure username and servername match the restrictions for DNS labels
@@ -177,13 +180,7 @@ class MultiClusterKubernetesSpawner(Spawner):
             proxy_spec=self.proxy_spec,
         )
 
-        # Key depends on other params here, so do it last
-        params["key"] = Template(self.key_template).render(**params).rstrip("-")
         return params
-
-    @property
-    def key(self):
-        return self.template_vars["key"]
 
     def get_labels(self):
         """
@@ -208,6 +205,7 @@ class MultiClusterKubernetesSpawner(Spawner):
         Render the templated YAML
         """
         params = self.template_vars.copy()
+        params["key"] = self.key
         rendered = Template(dedent(self.objects_template)).render(**params)
         parsed = list(yaml.load_all(rendered))
 
@@ -219,6 +217,34 @@ class MultiClusterKubernetesSpawner(Spawner):
             if p["kind"] == "Pod":
                 p = self.modify_pod(p)
         return parsed
+
+    def get_state(self):
+        """
+        Save state required to reinstate this user's pod from scratch
+
+        We save the `pod_name`, even though we could easily compute it,
+        because JupyterHub requires you save *some* state! Otherwise
+        it assumes your server is dead. This works around that.
+
+        It's also useful for cases when the `pod_template` changes between
+        restarts - this keeps the old pods around.
+        """
+        state = super().get_state()
+        state["key"] = self.key
+        return state
+
+    def load_state(self, state):
+        """
+        Load state from storage required to reinstate this user's pod
+
+        Since this runs after `__init__`, this will override the generated `pod_name`
+        if there's one we have saved in state. These are the same in most cases,
+        but if the `pod_template` has changed in between restarts, it will no longer
+        be the case. This allows us to continue serving from the old pods with
+        the old names.
+        """
+        if "key" in state:
+            self.key = state["key"]
 
     async def kubectl_apply(self, spec):
         cmd = [
