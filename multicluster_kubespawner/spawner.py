@@ -60,7 +60,7 @@ class MultiClusterKubernetesSpawner(Spawner):
 
         Example::
 
-            c.KubeSpawner.profile_list = [
+            c.MultiClusterKubeSpawner.profile_list = [
                 {
                     'display_name': 'Training Env - Python',
                     'slug': 'training-python',
@@ -111,19 +111,19 @@ class MultiClusterKubernetesSpawner(Spawner):
         callable will be called asynchronously if it returns a future, rather than
         a list. Note that the interface of the spawner class is not deemed stable
         across versions, so using this functionality might cause your JupyterHub
-        or kubespawner upgrades to break.
+        or MultiClusterKubeSpawner upgrades to break.
         """,
     )
     profile_form_template = Unicode(
         """
         <style>
         /* The profile description should not be bold, even though it is inside the <label> tag */
-        #kubespawner-profiles-list label p {
+        #multicluster-kubespawner-profiles-list label p {
             font-weight: normal;
         }
         </style>
 
-        <div class='form-group' id='kubespawner-profiles-list'>
+        <div class='form-group' id='multicluster-kubespawner-profiles-list'>
         {% for profile in profile_list %}
         <label for='profile-item-{{ profile.slug }}' class='form-control input-group'>
             <div class='col-md-1'>
@@ -226,11 +226,11 @@ class MultiClusterKubernetesSpawner(Spawner):
         """
         Save state required to reinstate this user's pod from scratch
 
-        We save the `pod_name`, even though we could easily compute it,
+        We save the `key`, even though we could easily compute it,
         because JupyterHub requires you save *some* state! Otherwise
         it assumes your server is dead. This works around that.
 
-        It's also useful for cases when the `pod_template` changes between
+        It's also useful for cases when the `key` changes between
         restarts - this keeps the old pods around.
         """
         state = super().get_state()
@@ -241,7 +241,7 @@ class MultiClusterKubernetesSpawner(Spawner):
         """
         Load state from storage required to reinstate this user's pod
 
-        Since this runs after `__init__`, this will override the generated `pod_name`
+        Since this runs after `__init__`, this will override the generated `key`
         if there's one we have saved in state. These are the same in most cases,
         but if the `pod_template` has changed in between restarts, it will no longer
         be the case. This allows us to continue serving from the old pods with
@@ -421,7 +421,7 @@ class MultiClusterKubernetesSpawner(Spawner):
                 profile = default_profile
 
         self.log.debug(
-            "Applying KubeSpawner override for profile '%s'", profile["display_name"]
+            "Applying Spawner override for profile '%s'", profile["display_name"]
         )
         spawner_override = profile.get("spawner_override", {})
         for k, v in spawner_override.items():
@@ -478,6 +478,6 @@ class MultiClusterKubernetesSpawner(Spawner):
         unrecognized_keys = option_keys.difference(self._user_option_keys)
         if unrecognized_keys:
             self.log.warning(
-                "Ignoring unrecognized KubeSpawner user_options: %s",
+                "Ignoring unrecognized Spawner user_options: %s",
                 ", ".join(map(str, sorted(unrecognized_keys))),
             )
