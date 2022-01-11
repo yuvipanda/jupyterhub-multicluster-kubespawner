@@ -17,7 +17,7 @@ c.MultiClusterKubernetesSpawner.profile_list = [
         "description": "Launch on local minikube",
         "spawner_override": {
             "kubernetes_context": "minikube",
-            "ingress_public_url": "http://192.168.64.3:32258",
+            "ingress_public_url": "http://192.168.64.3:31974",
         },
     },
     {
@@ -25,7 +25,15 @@ c.MultiClusterKubernetesSpawner.profile_list = [
         "description": "Launch on GKE on us-central-1",
         "spawner_override": {
             "kubernetes_context": "gke_ucb-datahub-2018_us-central1_fall-2019",
-            "ingress_public_url": "http://34.69.164.86",
+            "ingress_public_url": "http://35.238.7.135",
+        },
+    },
+    {
+        "display_name": "DigitalOcean SFO",
+        "description": "Launch on a DigitalOcean Cluster in California",
+        "spawner_override": {
+            "kubernetes_context": "do-nyc3-nbss-1",
+            "ingress_public_url": "http://144.126.250.129",
         },
     },
 ]
@@ -64,6 +72,7 @@ kind: Ingress
 metadata:
   name: {{key}}
 spec:
+  ingressClassName: contour
   rules:
   - http:
       paths:
