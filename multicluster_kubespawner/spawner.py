@@ -194,7 +194,12 @@ class MultiClusterKubernetesSpawner(Spawner):
             "mcks.hub.jupyter.org/key": self.key,
         }
 
-    def modify_pod(self, pod):
+    def augment_notebook_container(self, pod):
+        """
+        Augment the notebook container so it works with JupyterHub
+
+        Looks for a container named 'notebook' in
+        """
         notebook = next(c for c in pod["spec"]["containers"] if c["name"] == "notebook")
 
         # Inject our environment variables into the notebook container
@@ -219,36 +224,29 @@ class MultiClusterKubernetesSpawner(Spawner):
             labels.update(self.get_labels())
 
             if p["kind"] == "Pod":
-                p = self.modify_pod(p)
+                p = self.augment_notebook_container(p)
         return parsed
 
     def get_state(self):
         """
         Save state required to reinstate this user's pod from scratch
-
-        We save the `key`, even though we could easily compute it,
-        because JupyterHub requires you save *some* state! Otherwise
-        it assumes your server is dead. This works around that.
-
-        It's also useful for cases when the `key` changes between
-        restarts - this keeps the old pods around.
         """
         state = super().get_state()
         state["key"] = self.key
+        state["kubernetes_context"] = self.kubernetes_context
+        state["ingress_public_url "] = self.ingress_public_url
         return state
 
     def load_state(self, state):
         """
         Load state from storage required to reinstate this user's pod
-
-        Since this runs after `__init__`, this will override the generated `key`
-        if there's one we have saved in state. These are the same in most cases,
-        but if the `pod_template` has changed in between restarts, it will no longer
-        be the case. This allows us to continue serving from the old pods with
-        the old names.
         """
         if "key" in state:
             self.key = state["key"]
+        if "ingress_public_url" in state:
+            self.ingress_public_url = state["ingress_public_url"]
+        if "kubernetes_context" in state:
+            self.kubernetes_context = state["kubernetes_context"]
 
     async def kubectl_apply(self, spec):
         cmd = [
