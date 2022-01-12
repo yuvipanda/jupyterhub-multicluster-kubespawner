@@ -64,47 +64,51 @@ c.MultiClusterKubernetesSpawner.patches = [
     """,
 ]
 
-c.MultiClusterKubernetesSpawner.objects = """
-apiVersion: v1
-kind: Pod
-metadata:
-    name: {{key}}
-spec:
-    containers:
-    - name: notebook
-      image: jupyter/scipy-notebook:latest
-      ports:
-        - containerPort: 8888
-      command:
-      - /opt/conda/bin/jupyterhub-singleuser
-      - --port=8888
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{key}}
-spec:
-  selector:
-    mcks.hub.jupyter.org/key: {{key}}
-  ports:
-    - protocol: TCP
-      port: 8888
-      targetPort: 8888
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: {{key}}
-spec:
-  ingressClassName: contour
-  rules:
-  - http:
-      paths:
-      - path: {{proxy_spec}}
-        pathType: Prefix
-        backend:
-          service:
-            name: {{key}}
-            port:
-              number: 8888
-"""
+c.MultiClusterKubernetesSpawner.objects = [
+    """
+    apiVersion: v1
+    kind: Pod
+    metadata:
+        name: {{key}}
+    spec:
+        containers:
+        - name: notebook
+          image: jupyter/scipy-notebook:latest
+          ports:
+            - containerPort: 8888
+          command:
+          - /opt/conda/bin/jupyterhub-singleuser
+          - --port=8888
+    """,
+    """
+    apiVersion: v1
+    kind: Service
+    metadata:
+        name: {{key}}
+    spec:
+        selector:
+            mcks.hub.jupyter.org/key: {{key}}
+        ports:
+            - protocol: TCP
+              port: 8888
+              targetPort: 8888
+    """,
+    """
+    apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    metadata:
+        name: {{key}}
+    spec:
+        ingressClassName: contour
+        rules:
+        - http:
+            paths:
+            - path: {{proxy_spec}}
+              pathType: Prefix
+              backend:
+                service:
+                   name: {{key}}
+                   port:
+                       number: 8888
+    """,
+]
