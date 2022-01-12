@@ -4,8 +4,7 @@ from multicluster_kubespawner.spawner import MultiClusterKubernetesSpawner
 
 c.JupyterHub.allow_named_servers = True
 c.JupyterHub.cleanup_servers = False
-c.JupyterHub.hub_ip = "192.168.0.151"
-c.Spawner.hub_connect_url = "https://34ed-36-255-233-17.ngrok.io"
+c.Spawner.hub_connect_url = "https://71dc-36-255-233-17.ngrok.io"
 # c.Spawner.hub_connect_ip = "192.168.0.151"
 
 c.JupyterHub.spawner_class = MultiClusterKubernetesSpawner
@@ -40,7 +39,32 @@ c.MultiClusterKubernetesSpawner.profile_list = [
 
 
 c.MultiClusterKubernetesSpawner.ingress_public_url = "http://34.69.164.86"
-c.MultiClusterKubernetesSpawner.objects_template = """
+c.MultiClusterKubernetesSpawner.patches = [
+    """
+    kind: Pod
+    metadata:
+        name: {{key}}
+    spec:
+        containers:
+        - name: notebook
+          resources:
+            requests:
+                memory: 16Mi
+    """,
+    """
+    kind: Pod
+    metadata:
+        name: {{key}}
+    spec:
+        containers:
+        - name: notebook
+          resources:
+            requests:
+                cpu: 0.01
+    """,
+]
+
+c.MultiClusterKubernetesSpawner.objects = """
 apiVersion: v1
 kind: Pod
 metadata:
