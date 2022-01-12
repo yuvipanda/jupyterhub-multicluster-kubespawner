@@ -39,8 +39,8 @@ c.MultiClusterKubernetesSpawner.profile_list = [
 
 
 c.MultiClusterKubernetesSpawner.ingress_public_url = "http://34.69.164.86"
-c.MultiClusterKubernetesSpawner.patches = [
-    """
+c.MultiClusterKubernetesSpawner.patches = {
+    "01-memory": """
     kind: Pod
     metadata:
         name: {{key}}
@@ -51,7 +51,7 @@ c.MultiClusterKubernetesSpawner.patches = [
             requests:
                 memory: 16Mi
     """,
-    """
+    "02-cpu": """
     kind: Pod
     metadata:
         name: {{key}}
@@ -62,15 +62,23 @@ c.MultiClusterKubernetesSpawner.patches = [
             requests:
                 cpu: 0.01
     """,
-]
+}
 
-c.MultiClusterKubernetesSpawner.objects = [
-    """
+c.MultiClusterKubernetesSpawner.objects = {
+    # sa must come before pod, as pod references sa
+    "01-sa": """
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: {{key}}
+    """,
+    "02-pod": """
     apiVersion: v1
     kind: Pod
     metadata:
         name: {{key}}
     spec:
+        serviceAccountName: {{key}}
         containers:
         - name: notebook
           image: jupyter/scipy-notebook:latest
@@ -84,7 +92,7 @@ c.MultiClusterKubernetesSpawner.objects = [
             value: {{v|tojson}}
           {% endfor %}
     """,
-    """
+    "03-service": """
     apiVersion: v1
     kind: Service
     metadata:
@@ -97,7 +105,7 @@ c.MultiClusterKubernetesSpawner.objects = [
               port: 8888
               targetPort: 8888
     """,
-    """
+    "04-ingress": """
     apiVersion: networking.k8s.io/v1
     kind: Ingress
     metadata:
@@ -115,4 +123,4 @@ c.MultiClusterKubernetesSpawner.objects = [
                    port:
                        number: 8888
     """,
-]
+}
