@@ -110,6 +110,10 @@ c.MultiClusterKubernetesSpawner.objects = {
     kind: Ingress
     metadata:
         name: {{key}}
+        annotations:
+            # Required to get websockets to work with contour
+            projectcontour.io/websocket-routes: {{proxy_spec}}
+            contour.heptio.com/websocket-routes: {{proxy_spec}}
     spec:
         ingressClassName: contour
         rules:
