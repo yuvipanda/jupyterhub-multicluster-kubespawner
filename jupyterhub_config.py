@@ -83,7 +83,7 @@ c.MultiClusterKubernetesSpawner.objects = {
         - name: notebook
           image: jupyter/scipy-notebook:latest
           command: {{spawner.cmd|tojson}}
-          args: {{spawner.args|tojson}}
+          args: {{spawner.get_args()|tojson}}
           ports:
           - containerPort: {{spawner.port}}
           env:
