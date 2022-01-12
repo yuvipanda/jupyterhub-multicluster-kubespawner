@@ -74,11 +74,15 @@ c.MultiClusterKubernetesSpawner.objects = [
         containers:
         - name: notebook
           image: jupyter/scipy-notebook:latest
+          command: {{spawner.cmd|tojson}}
+          args: {{spawner.args|tojson}}
           ports:
-            - containerPort: 8888
-          command:
-          - /opt/conda/bin/jupyterhub-singleuser
-          - --port=8888
+          - containerPort: {{spawner.port}}
+          env:
+          {% for k, v in spawner.get_env().items() -%}
+          - name: {{k}}
+            value: {{v|tojson}}
+          {% endfor %}
     """,
     """
     apiVersion: v1

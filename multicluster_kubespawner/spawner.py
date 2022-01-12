@@ -177,6 +177,9 @@ class MultiClusterKubernetesSpawner(Spawner):
         super().__init__(*args, **kwargs)
         # Key depends on other params here, so do it last
         self.key = Template(self.key_template).render(**self.template_vars).rstrip("-")
+        # Our default port is 8888
+        if self.port == 0:
+            self.port = 8888
 
     @property
     def template_vars(self):
@@ -211,24 +214,10 @@ class MultiClusterKubernetesSpawner(Spawner):
             "mcks.hub.jupyter.org/key": self.key,
         }
 
-    def augment_notebook_container(self, pod):
-        """
-        Augment the notebook container so it works with JupyterHub
-
-        Looks for a container named 'notebook' in
-        """
-        notebook = next(c for c in pod["spec"]["containers"] if c["name"] == "notebook")
-
-        # Inject our environment variables into the notebook container
-        env = notebook.setdefault("env", [])
-        for k, v in self.get_env().items():
-            env.append({"name": k, "value": v})
-
-        return pod
-
     async def apply_patches(self, objects):
         params = self.template_vars.copy()
         params["key"] = self.key
+        params["spawner"] = self
 
         named_objects = {f"{o['kind']}/{o['metadata']['name']}": o for o in objects}
 
@@ -274,6 +263,7 @@ class MultiClusterKubernetesSpawner(Spawner):
         """
         params = self.template_vars.copy()
         params["key"] = self.key
+        params["spawner"] = self
         parsed = [yaml.load(Template(dedent(o)).render(**params)) for o in self.objects]
 
         for p in parsed:
@@ -281,8 +271,6 @@ class MultiClusterKubernetesSpawner(Spawner):
             labels = p.setdefault("metadata", {}).setdefault("labels", {})
             labels.update(self.get_labels())
 
-            if p["kind"] == "Pod":
-                p = self.augment_notebook_container(p)
         return parsed
 
     def get_state(self):
