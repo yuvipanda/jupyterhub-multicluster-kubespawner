@@ -269,6 +269,25 @@ class MultiClusterKubernetesSpawner(Spawner):
 
         return list(named_objects.values())
 
+    def augment_notebook_container(self, objects):
+        """
+        Augment the notebook container object after all patches are done
+
+        Used to set JUPYTER_IMAGE and JUPYTER_IMAGE_SPEC env vars, as they can
+        be modified by patches, but we can't refer to them from the env directly.
+        """
+        for object in objects:
+            if object["kind"] == "Pod" and object["metadata"]["name"] == self.key:
+                for c in object["spec"]["containers"]:
+                    if c["name"] == "notebook":
+                        c["env"].append({"name": "JUPYTER_IMAGE", "value": c["image"]})
+                        c["env"].append(
+                            {"name": "JUPYTER_IMAGE_SPEC", "value": c["image"]}
+                        )
+
+                        # Short circuit and return
+                        return objects
+
     def get_objects_spec(self):
         """
         Render the templated YAML
@@ -353,7 +372,9 @@ class MultiClusterKubernetesSpawner(Spawner):
         # load user options (including profile)
         await self.load_user_options()
 
-        spec = await self.apply_patches(self.get_objects_spec())
+        spec = self.augment_notebook_container(
+            await self.apply_patches(self.get_objects_spec())
+        )
         await self.kubectl_apply(spec)
         await self.kubectl_wait(self.start_timeout)
 
