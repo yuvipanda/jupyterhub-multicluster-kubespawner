@@ -19,6 +19,11 @@ from traitlets import default, Union, Callable
 
 class MultiClusterKubernetesSpawner(Spawner):
     start_timeout = 300
+
+    # Notebook servers must always listen on 0.0.0.0, otherwise there is no
+    # way for the Ingress providers to talk to them
+    ip = "0.0.0.0"
+
     objects = Dict(
         Unicode,
         {},

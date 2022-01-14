@@ -81,7 +81,7 @@ c.MultiClusterKubernetesSpawner.objects = {
         serviceAccountName: {{key}}
         containers:
         - name: notebook
-          image: jupyter/scipy-notebook:latest
+          image: pangeo/pangeo-notebook:latest
           command: {{spawner.cmd|tojson}}
           args: {{spawner.get_args()|tojson}}
           ports:
