@@ -344,10 +344,27 @@ class MultiClusterKubernetesSpawner(Spawner):
         params = self.template_vars.copy()
         params["key"] = self.key
         params["spawner"] = self
-        parsed = [
-            yaml.load(Template(dedent(o)).render(**params))
+
+        resources = {"limits": {}, "requests": {}}
+        if self.mem_guarantee:
+            resources["requests"]["memory"] = str(self.mem_guarantee)
+        if self.mem_limit:
+            resources["limits"]["memory"] = str(self.mem_limit)
+        if self.cpu_guarantee:
+            resources["requests"]["cpu"] = str(self.cpu_guarantee)
+        if self.cpu_limit:
+            resources["limits"]["cpu"] = str(self.cpu_limit)
+
+        params["resources"] = resources
+
+        rendered = [
+            Template(dedent(o)).render(**params)
             for k, o in sorted(self.objects.items())
         ]
+        parsed = []
+        for r in rendered:
+            # FIXME: report YAML parse errors clearly
+            parsed.append(yaml.load(r))
 
         for p in parsed:
             # Inject metadata into every object

@@ -84,6 +84,7 @@ c.MultiClusterKubernetesSpawner.objects = {
           image: pangeo/pangeo-notebook:latest
           command: {{spawner.cmd|tojson}}
           args: {{spawner.get_args()|tojson}}
+          resources: {{resources|tojson}}
           ports:
           - containerPort: {{spawner.port}}
           env:
