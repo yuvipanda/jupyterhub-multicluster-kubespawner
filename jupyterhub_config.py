@@ -87,6 +87,24 @@ c.MultiClusterKubernetesSpawner.objects = {
           ports:
           - containerPort: {{spawner.port}}
           env:
+          # The memory env vars can be set directly by kubernetes, as they just show up
+          # as 'bytes'. The CPU ones are a bit more complicated, because kubernetes will
+          # only provide integers, with a single unit being 1m or .001 of a CPU. JupyterHub
+          # says they'll be floats, as fractions of a full CPU. There isn't really a way to
+          # do that in kubernetes, so we've to resort to doing that manually. This kinda sucks.
+          # An advantage with kubernetes would be that it knows the *real* limits, which can be
+          # setup either by a LimitRange object, or by just the number of CPUs available in the
+          # node. Our spawner doesn't have this information.
+          - name: MEM_GUARANTEE
+            valueFrom:
+                resourceFieldRef:
+                    containerName: notebook
+                    resource: requests.memory
+          - name: MEM_LIMIT
+            valueFrom:
+                resourceFieldRef:
+                    containerName: notebook
+                    resource: limits.memory
           {% for k, v in spawner.get_env().items() -%}
           - name: {{k}}
             value: {{v|tojson}}

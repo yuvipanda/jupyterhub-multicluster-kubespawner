@@ -269,6 +269,23 @@ class MultiClusterKubernetesSpawner(Spawner):
 
         return list(named_objects.values())
 
+    def get_env(self):
+        # jupyterhub sets {CPU|MEM}_{LIMIT|GUARANTEE} env vars if appropriate
+        # cpu and mem traitlets are set in the Spawner. We instead set these in
+        # augment_notebook_container based on what the state of the pod is,
+        # so patches can work properly as well.
+        env = super().get_env()
+        if "CPU_LIMIT" in env:
+            del env["CPU_LIMIT"]
+        if "CPU_GUARANTEE" in env:
+            del env["CPU_GUARANTEE"]
+        if "MEM_LIMIT" in env:
+            del env["MEM_LIMIT"]
+        if "MEM_GUARANTEE" in env:
+            del env["MEM_GUARANTEE"]
+
+        return env
+
     def augment_notebook_container(self, objects):
         """
         Augment the notebook container object after all patches are done
@@ -285,7 +302,39 @@ class MultiClusterKubernetesSpawner(Spawner):
                             {"name": "JUPYTER_IMAGE_SPEC", "value": c["image"]}
                         )
 
-                        # Short circuit and return
+                        resources = c.setdefault("resources", {})
+
+                        # The memory env vars can be set directly by kubernetes, as they just show up
+                        # as 'bytes'. The CPU ones are a bit more complicated, because kubernetes will
+                        # only provide integers, with a single unit being 1m or .001 of a CPU. JupyterHub
+                        # says they'll be floats, as fractions of a full CPU. There isn't really a way to
+                        # do that in kubernetes, so we've to resort to doing that manually. This kinda sucks.
+                        # An advantage with kubernetes would be that it knows the *real* limits, which can be
+                        # setup either by a LimitRange object, or by just the number of CPUs available in the
+                        # node. Our spawner doesn't have this information.
+                        if "limits" in resources and "cpu" in resources["limits"]:
+                            cpu_limit_str = str(resources["limits"]["cpu"])
+                            if cpu_limit_str.endswith("m"):
+                                cpu_limit_str = int(cpu_limit_str.rstrip("m")) / 1000
+                            c["env"].append(
+                                {
+                                    "name": "CPU_LIMIT",
+                                    "value": f"{float(cpu_limit_str):0.2f}",
+                                }
+                            )
+                        if "requests" in resources and "cpu" in resources["requests"]:
+                            cpu_guarantee_str = str(resources["requests"]["cpu"])
+                            if cpu_guarantee_str.endswith("m"):
+                                cpu_guarantee_str = (
+                                    int(cpu_guarantee_str.rstrip("m")) / 1000
+                                )
+                            c["env"].append(
+                                {
+                                    "name": "CPU_GUARANTEE",
+                                    "value": f"{float(cpu_guarantee_str):0.2f}",
+                                }
+                            )
+
                         return objects
 
     def get_objects_spec(self):
