@@ -77,6 +77,34 @@ class MultiClusterKubeSpawner(Spawner):
         config=True,
     )
 
+    image = Unicode(
+        "pangeo/pangeo-notebook:latest",
+        config=True,
+        help="""
+        Docker image to use for spawning user's containers.
+
+        Defaults to `pangeo/pangeo-notebook:latest`
+
+        Name of the container + a tag, same as would be used with
+        a `docker pull` command. If tag is set to `latest`, kubernetes will
+        check the registry each time a new user is spawned to see if there
+        is a newer image available. If available, new image will be pulled.
+        Note that this could cause long delays when spawning, especially
+        if the image is large. If you do not specify a tag, whatever version
+        of the image is first pulled on the node will be used, thus possibly
+        leading to inconsistent images on different nodes. For all these
+        reasons, it is recommended to specify a specific immutable tag
+        for the image.
+
+        If your image is very large, you might need to increase the timeout
+        for starting the single user container from the default. You can
+        set this with::
+
+           c.Spawner.start_timeout = 60 * 5  # Up to 5 minutes
+
+        """,
+    )
+
     profile_list = Union(
         trait_types=[List(trait=Dict()), Callable()],
         config=True,
