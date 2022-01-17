@@ -23,17 +23,24 @@ def spawner():
 
 
 def test_key(spawner):
-    template = """
-    apiVersion: v1
-    kind: Pod
-    metadata:
-        name: {{key}}
-    spec:
-        containers:
-        - name: nginx
-          image: nginx:1.14.2
-          ports:
-            - containerPort: 80
-    """
-    spawner.objects_template = template
-    print(spawner.get_objects_yaml())
+    spawner.resources = {
+        "01-a": """
+        apiVersion: v1
+        kind: Pod
+        metadata:
+            name: {{key}}
+        spec:
+            containers:
+            - name: nginx
+            image: nginx:1.14.2
+            ports:
+                - containerPort: 80
+        """,
+        "02-b": """
+        apiVersion: v1
+        kind: ServiceAccount
+        metadata:
+            name: {{key}}
+        """,
+    }
+    print(spawner.get_resources_specs())

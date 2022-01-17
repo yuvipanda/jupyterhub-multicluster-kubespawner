@@ -254,7 +254,7 @@ requiring a lot of effort by the maintainers of this spawner to support each pos
 customization.
 
 Behind the scenes, `kubectl patch` is used to merge the initial list of generated
-kubernetes objects for each user with some customizations before they are passed to
+kubernetes resources for each user with some customizations before they are passed to
 `kubectl apply`. Operators set these by customizing the `patches` traitlet. It can
 be either set for all profiles by setting `c.MultiClusterKubeSpawner.patches` or just
 for a particular set of profiles by setting `patches` under `spawner_override` for that
@@ -262,7 +262,7 @@ particular profile.
 
 `patches` is a dictionary, where the key is used just for sorting and the value is
 a string that should be a valid YAML object when parsed after template substitution.
-Objects are merged based on the value for `kind` and `metadata.name` keys in the YAML.
+Resources are merged based on the value for `kind` and `metadata.name` keys in the YAML.
 `kubectl` knows when to add items to a list or merge their properties on appropriate
 attributes.
 
@@ -304,10 +304,10 @@ the existing configuration for the container.
 Please read the [`kubectl` documentation](https://kubernetes.io/docs/tasks/manage-kubernetes-objects/update-api-object-kubectl-patch)
 to understand how strategic merge patch works.
 
-### Additional per-user kubernetes objects with `objects`
+### Additional per-user kubernetes resources with `resources`
 
-You can also create arbitrary additional kubernetes objects for each user
-by setting the `objects` configuration. It's a dictionary where the key is used
+You can also create arbitrary additional kubernetes resources for each user
+by setting the `resources` configuration. It's a dictionary where the key is used
 for sorting, and the value should be valid YAML after expansion via jinja2 template.
 
 For example, the following config creates a Kubernetes [Role and RoleBinding](https://kubernetes.io/docs/reference/access-authn-authz/rbac/)
@@ -315,38 +315,36 @@ for each user to allow them to (insecurely!) run a [dask-kubernetes](https://kub
 cluster.
 
 ```python
-c.MultiClusterKubernetesSpawner.objects.update(
-    {
-        "10-dask-role": """
-        apiVersion: rbac.authorization.k8s.io/v1
-        kind: Role
-        metadata:
-          name: {{key}}-dask
-        rules:
-        - apiGroups:
-          - ""
-          resources:
-          - pods
-          verbs:
-          - list
-          - create
-          - delete
-        """,
-        "11-dask-rolebinding": """
-        apiVersion: rbac.authorization.k8s.io/v1
-        kind: RoleBinding
-        metadata:
-            name: {{key}}-dask
-        roleRef:
-            apiGroup: rbac.authorization.k8s.io
-            kind: Role
-            name: {{key}}-dask
-        subjects:
-        - apiGroup: ""
-          kind: ServiceAccount
-          name: {{key}}
-        """,
-    }
+c.MultiClusterKubernetesSpawner.resources = {
+    "10-dask-role": """
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: Role
+    metadata:
+      name: {{key}}-dask
+    rules:
+    - apiGroups:
+      - ""
+      resources:
+      - pods
+      verbs:
+      - list
+      - create
+      - delete
+    """,
+    "11-dask-rolebinding": """
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    metadata:
+      name: {{key}}-dask
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: Role
+      name: {{key}}-dask
+    subjects:
+    - apiGroup: ""
+      kind: ServiceAccount
+      name: {{key}}
+    """,
 )
 ```
 

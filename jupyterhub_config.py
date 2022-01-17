@@ -64,9 +64,8 @@ c.MultiClusterKubeSpawner.patches = {
 
 
 # dask-kubernetes setup
-c.MultiClusterKubeSpawner.objects.update(
-    {
-        "10-dask-role": """
+c.MultiClusterKubeSpawner.resources = {
+    "10-dask-role": """
         apiVersion: rbac.authorization.k8s.io/v1
         kind: Role
         metadata:
@@ -81,7 +80,7 @@ c.MultiClusterKubeSpawner.objects.update(
           - create
           - delete
         """,
-        "11-dask-rolebinding": """
+    "11-dask-rolebinding": """
         apiVersion: rbac.authorization.k8s.io/v1
         kind: RoleBinding
         metadata:
@@ -95,5 +94,4 @@ c.MultiClusterKubeSpawner.objects.update(
           kind: ServiceAccount
           name: {{key}}
         """,
-    }
-)
+}
