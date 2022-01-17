@@ -27,7 +27,7 @@ def make_dns_safe(s: str) -> str:
     return escapism.escape(s, safe=safe_chars, escape_char="-").lower()
 
 
-class MultiClusterKubernetesSpawner(Spawner):
+class MultiClusterKubeSpawner(Spawner):
     start_timeout = 300
 
     # Notebook servers must always listen on 0.0.0.0, otherwise there is no

@@ -1,13 +1,12 @@
 from jupyterhub.spawner import SimpleLocalProcessSpawner
 from jupyterhub.auth import DummyAuthenticator
-from multicluster_kubespawner.spawner import MultiClusterKubernetesSpawner
 
 c.JupyterHub.allow_named_servers = True
 c.JupyterHub.cleanup_servers = False
 c.Spawner.hub_connect_url = "https://71dc-36-255-233-17.ngrok.io"
 # c.Spawner.hub_connect_ip = "192.168.0.151"
 
-c.JupyterHub.spawner_class = MultiClusterKubernetesSpawner
+c.JupyterHub.spawner_class = "multicluster_kubespawner.MultiClusterKubeSpawner"
 c.JupyterHub.authenticator_class = DummyAuthenticator
 
 c.MultiClusterKubernetesSpawner.profile_list = [
