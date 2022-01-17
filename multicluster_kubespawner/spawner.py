@@ -8,13 +8,23 @@ import string
 import escapism
 from ruamel.yaml import YAML
 import json
-from slugify import slugify
 
 yaml = YAML(typ="safe")
 
 from jupyterhub.spawner import Spawner
 from traitlets.config import Unicode, Dict, List
 from traitlets import default, Union, Callable
+
+
+def make_dns_safe(s: str) -> str:
+    """
+    escape a string to be DNS safe
+    """
+    # Make sure username and servername match the restrictions for DNS labels
+    # Note: '-' is not in safe_chars, as it is being used as escape character
+    safe_chars = set(string.ascii_lowercase + string.digits)
+
+    return escapism.escape(s, safe=safe_chars, escape_char="-").lower()
 
 
 class MultiClusterKubernetesSpawner(Spawner):
@@ -197,19 +207,11 @@ class MultiClusterKubernetesSpawner(Spawner):
             self.port = 8888
 
     @property
-    def template_vars(self):
-        # Make sure username and servername match the restrictions for DNS labels
-        # Note: '-' is not in safe_chars, as it is being used as escape character
-        safe_chars = set(string.ascii_lowercase + string.digits)
-
+    def template_vars(self) -> dict:
         raw_servername = self.name or ""
-        safe_servername = escapism.escape(
-            raw_servername, safe=safe_chars, escape_char="-"
-        ).lower()
+        safe_servername = make_dns_safe(raw_servername)
 
-        safe_username = escapism.escape(
-            self.user.name, safe=safe_chars, escape_char="-"
-        ).lower()
+        safe_username = make_dns_safe(self.user.name)
         params = dict(
             userid=self.user.id,
             username=safe_username,
@@ -600,7 +602,7 @@ class MultiClusterKubernetesSpawner(Spawner):
         # generate missing slug fields from display_name
         for profile in profile_list:
             if "slug" not in profile:
-                profile["slug"] = slugify(profile["display_name"])
+                profile["slug"] = make_dns_safe(profile["display_name"])
 
         return profile_list
 
