@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name="jupyterhub-multicluster-kubespawner",
-    version="0.1",
+    version="0.2",
     install_requires=[
         "escapism",
         "jupyterhub>=1.5",
