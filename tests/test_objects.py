@@ -1,11 +1,11 @@
 import pytest
 from unittest.mock import MagicMock
-from multicluster_kubespawner.spawner import MultiClusterKubernetesSpawner
+from multicluster_kubespawner.spawner import MultiClusterKubeSpawner
 
 
 @pytest.fixture
 def spawner():
-    sp = MultiClusterKubernetesSpawner()
+    sp = MultiClusterKubeSpawner()
     user = MagicMock()
     user.name = "mock_name"
     user.id = "mock_id"

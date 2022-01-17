@@ -9,7 +9,7 @@ c.Spawner.hub_connect_url = "https://71dc-36-255-233-17.ngrok.io"
 c.JupyterHub.spawner_class = "multicluster_kubespawner.MultiClusterKubeSpawner"
 c.JupyterHub.authenticator_class = DummyAuthenticator
 
-c.MultiClusterKubernetesSpawner.profile_list = [
+c.MultiClusterKubeSpawner.profile_list = [
     {
         "display_name": "minikube",
         "description": "Launch on local minikube",
@@ -37,8 +37,7 @@ c.MultiClusterKubernetesSpawner.profile_list = [
 ]
 
 
-c.MultiClusterKubernetesSpawner.ingress_public_url = "http://34.69.164.86"
-c.MultiClusterKubernetesSpawner.patches = {
+c.MultiClusterKubeSpawner.patches = {
     "01-memory": """
     kind: Pod
     metadata:
@@ -59,11 +58,11 @@ c.MultiClusterKubernetesSpawner.patches = {
         - name: notebook
           resources:
             requests:
-                cpu: 0.01
+                cpu: 10m
     """,
 }
 
-c.MultiClusterKubernetesSpawner.objects = {
+c.MultiClusterKubeSpawner.objects = {
     # sa must come before pod, as pod references sa
     "01-sa": """
     apiVersion: v1
