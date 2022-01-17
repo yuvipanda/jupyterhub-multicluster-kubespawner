@@ -94,54 +94,6 @@ class MultiClusterKubernetesSpawner(Spawner):
           take the `Spawner` instance as parameter and return the final value.
         - `default`: (optional Bool) True if this is the default selected option
 
-        Example::
-
-            c.MultiClusterKubeSpawner.profile_list = [
-                {
-                    'display_name': 'Training Env - Python',
-                    'slug': 'training-python',
-                    'default': True,
-                    'spawner_override': {
-                        'image': 'training/python:label',
-                        'cpu_limit': 1,
-                        'mem_limit': '512M',
-                    }
-                }, {
-                    'display_name': 'Training Env - Datascience',
-                    'slug': 'training-datascience',
-                    'spanwer_override': {
-                        'image': 'training/datascience:label',
-                        'cpu_limit': 4,
-                        'mem_limit': '8G',
-                    }
-                }, {
-                    'display_name': 'DataScience - Small instance',
-                    'slug': 'datascience-small',
-                    'spawner_override': {
-                        'image': 'datascience/small:label',
-                        'cpu_limit': 10,
-                        'mem_limit': '16G',
-                    }
-                }, {
-                    'display_name': 'DataScience - Medium instance',
-                    'slug': 'datascience-medium',
-                    'spawner_override': {
-                        'image': 'datascience/medium:label',
-                        'cpu_limit': 48,
-                        'mem_limit': '96G',
-                    }
-                }, {
-                    'display_name': 'DataScience - Medium instance (GPUx2)',
-                    'slug': 'datascience-gpu2x',
-                    'spawner_override': {
-                        'image': 'datascience/medium:label',
-                        'cpu_limit': 48,
-                        'mem_limit': '96G',
-                        'extra_resource_guarantees': {"nvidia.com/gpu": "2"},
-                    }
-                }
-            ]
-
         Instead of a list of dictionaries, this could also be a callable that takes as one
         parameter the current spawner instance and returns a list of dictionaries. The
         callable will be called asynchronously if it returns a future, rather than
