@@ -62,86 +62,38 @@ c.MultiClusterKubeSpawner.patches = {
     """,
 }
 
-c.MultiClusterKubeSpawner.objects = {
-    # sa must come before pod, as pod references sa
-    "01-sa": """
-    apiVersion: v1
-    kind: ServiceAccount
-    metadata:
-      name: {{key}}
-    """,
-    "02-pod": """
-    apiVersion: v1
-    kind: Pod
-    metadata:
-        name: {{key}}
-    spec:
-        serviceAccountName: {{key}}
-        containers:
-        - name: notebook
-          image: {{spawner.image}}
-          command: {{spawner.cmd|tojson}}
-          args: {{spawner.get_args()|tojson}}
-          resources: {{resources|tojson}}
-          ports:
-          - containerPort: {{spawner.port}}
-          env:
-          # The memory env vars can be set directly by kubernetes, as they just show up
-          # as 'bytes'. The CPU ones are a bit more complicated, because kubernetes will
-          # only provide integers, with a single unit being 1m or .001 of a CPU. JupyterHub
-          # says they'll be floats, as fractions of a full CPU. There isn't really a way to
-          # do that in kubernetes, so we've to resort to doing that manually. This kinda sucks.
-          # An advantage with kubernetes would be that it knows the *real* limits, which can be
-          # setup either by a LimitRange object, or by just the number of CPUs available in the
-          # node. Our spawner doesn't have this information.
-          - name: MEM_GUARANTEE
-            valueFrom:
-                resourceFieldRef:
-                    containerName: notebook
-                    resource: requests.memory
-          - name: MEM_LIMIT
-            valueFrom:
-                resourceFieldRef:
-                    containerName: notebook
-                    resource: limits.memory
-          {% for k, v in spawner.get_env().items() -%}
-          - name: {{k}}
-            value: {{v|tojson}}
-          {% endfor %}
-    """,
-    "03-service": """
-    apiVersion: v1
-    kind: Service
-    metadata:
-        name: {{key}}
-    spec:
-        selector:
-            mcks.hub.jupyter.org/key: {{key}}
-        ports:
-            - protocol: TCP
-              port: 8888
-              targetPort: 8888
-    """,
-    "04-ingress": """
-    apiVersion: networking.k8s.io/v1
-    kind: Ingress
-    metadata:
-        name: {{key}}
-        annotations:
-            # Required to get websockets to work with contour
-            projectcontour.io/websocket-routes: {{proxy_spec}}
-            contour.heptio.com/websocket-routes: {{proxy_spec}}
-    spec:
-        ingressClassName: contour
+
+# dask-kubernetes setup
+c.MultiClusterKubeSpawner.objects.update(
+    {
+        "10-dask-role": """
+        apiVersion: rbac.authorization.k8s.io/v1
+        kind: Role
+        metadata:
+          name: {{key}}-dask
         rules:
-        - http:
-            paths:
-            - path: {{proxy_spec}}
-              pathType: Prefix
-              backend:
-                service:
-                   name: {{key}}
-                   port:
-                       number: 8888
-    """,
-}
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          verbs:
+          - list
+          - create
+          - delete
+        """,
+        "11-dask-rolebinding": """
+        apiVersion: rbac.authorization.k8s.io/v1
+        kind: RoleBinding
+        metadata:
+            name: {{key}}-dask
+        roleRef:
+            apiGroup: rbac.authorization.k8s.io
+            kind: Role
+            name: {{key}}-dask
+        subjects:
+        - apiGroup: ""
+          kind: ServiceAccount
+          name: {{key}}
+        """,
+    }
+)
