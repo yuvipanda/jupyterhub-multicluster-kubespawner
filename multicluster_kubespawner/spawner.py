@@ -180,6 +180,12 @@ class MultiClusterKubernetesSpawner(Spawner):
 
     @default("env_keep")
     def _env_keep_default(self):
+        """
+        List of env vars of the JupyterHub process to put in singleuser servers.
+
+        We want no env vars from JupyterHub process to get into the singleuser servers,
+        as they run in totally different environments.
+        """
         return []
 
     def __init__(self, *args, **kwargs):
@@ -438,6 +444,10 @@ class MultiClusterKubernetesSpawner(Spawner):
         # load user options (including profile)
         await self.load_user_options()
 
+        # Generate YAML spec to be applied by rendering our objects templates (self.objects),
+        # applying any patches defined in self.patches, and finally augmenting the notebook
+        # container specifically with things that will be too cumborsome to do in jinja2 or
+        # depend on properties that could be changed by any of the patches
         spec = self.augment_notebook_container(
             await self.apply_patches(self.get_objects_spec())
         )
