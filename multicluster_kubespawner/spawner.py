@@ -272,6 +272,9 @@ class MultiClusterKubeSpawner(Spawner):
         if self.port == 0:
             self.port = 8888
 
+        # Store a list of resources we created so we can clean them up
+        self.created_resources = {}
+
     @property
     def template_vars(self) -> dict:
         raw_servername = self.name or ""
@@ -457,6 +460,7 @@ class MultiClusterKubeSpawner(Spawner):
         state["key"] = self.key
         state["kubernetes_context"] = self.kubernetes_context
         state["ingress_public_url "] = self.ingress_public_url
+        state["created_resources"] = self.created_resources
         return state
 
     def load_state(self, state: dict):
@@ -469,6 +473,8 @@ class MultiClusterKubeSpawner(Spawner):
             self.ingress_public_url = state["ingress_public_url"]
         if "kubernetes_context" in state:
             self.kubernetes_context = state["kubernetes_context"]
+        if "created_resources" in state:
+            self.created_resources = state["created_resources"]
 
     async def kubectl_apply(self, spec: list):
         cmd = [
@@ -493,6 +499,7 @@ class MultiClusterKubeSpawner(Spawner):
             objs = s.read()
         self.log.debug(f"kubectl applying {objs}")
         stdout, stderr = await proc.communicate(objs.encode())
+        self.created_resources = objs
 
         if (await proc.wait()) != 0:
             raise ValueError(f"kubectl apply failed: {stdout}, {stderr}")
@@ -508,6 +515,7 @@ class MultiClusterKubeSpawner(Spawner):
         if self.kubernetes_context:
             cmd.append(f"--context={self.kubernetes_context}")
         proc = await asyncio.create_subprocess_exec(*cmd)
+        stdout, stderr = await proc.communicate()
         return await proc.wait()
 
     async def start(self):
@@ -537,24 +545,23 @@ class MultiClusterKubeSpawner(Spawner):
     async def stop(self):
         # delete all doesn't seem to delete ingresses, lol?!
         # https://github.com/kubernetes/kubectl/issues/7
-        resources = ["all", "ingress"]
-        for r in resources:
-            cmd = [
-                "kubectl",
-                "delete",
-                r,
-                "-l",
-                f"mcks.hub.jupyter.org/key={self.key}",
-            ]
-            if self.kubernetes_context:
-                cmd.append(f"--context={self.kubernetes_context}")
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+        cmd = ["kubectl", "delete", "-f", "-", "--wait"]
+        if self.kubernetes_context:
+            cmd.append(f"--context={self.kubernetes_context}")
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await proc.communicate(self.created_resources.encode())
+
+        ret = await proc.wait()
+
+        if ret != 0:
+            raise ValueError(
+                f"kubectl delete failed with code {ret}: {stdout}, {stderr}"
             )
-            stdout, stderr = await proc.communicate()
-            print(stdout, stderr)
 
     async def poll(self):
         ret = await self.kubectl_wait()
