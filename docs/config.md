@@ -1,9 +1,5 @@
 # Configuration
 
-You can ask JupyterHub to use `MultiClusterKubeSpawner` with the following config
-snippet in your `jupyterhub_config.py` file, although more configuration is
-needed to connect the hub to different clusters.
-
 ## Philosophy
 
 `MultiClusterKubeSpawner` tries to be as kubernetes-native as possible, unlike
@@ -20,6 +16,14 @@ familiarity with Kubernetes is required to successfully configure this spawner,
 but the tradeoff seems beneficial for everyone.
 
 ## Setting up your installation
+
+You can ask JupyterHub to use `MultiClusterKubeSpawner` with the following config
+snippet in your `jupyterhub_config.py` file, although more configuration is
+needed to connect the hub to different clusters.
+
+```bash
+c.JupyterHub.spawner_class = "multicluster_kubespawner.MultiClusterKubeSpawner"
+```
 
 ```{toctree}
 kubeconfig/index
