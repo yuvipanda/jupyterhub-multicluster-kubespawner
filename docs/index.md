@@ -16,4 +16,5 @@ It also makes life much easier for JupyterHub operators.
 
 install
 config
+reference
 ```
