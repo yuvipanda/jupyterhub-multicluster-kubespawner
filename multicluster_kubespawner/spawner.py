@@ -13,7 +13,7 @@ yaml = YAML(typ="safe")
 
 from jupyterhub.spawner import Spawner
 from traitlets.config import Unicode, Dict, List
-from traitlets import default, Union, Callable, Integer
+from traitlets import default, Union, Callable, Integer, Bool
 
 
 def make_dns_safe(s: str) -> str:
@@ -56,6 +56,20 @@ class MultiClusterKubeSpawner(Spawner):
     # We want no env vars from JupyterHub process to get into the singleuser servers,
     # as they run in totally different environments.
     env_keep = []
+
+    # Namespace to create when we are creating a namespace per user
+    namespace_resource_template = Template(
+        """
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+            labels:
+                kubernetes.io/metadata.name: {{spawner.namespace}}
+                mcks.hub.jupyter.org/delete-on-stop: "false"
+                name: {{spawner.namespace}}
+            name: {{spawner.namespace}}
+        """
+    )
 
     # Default set of kubernetes resources created for each user
     default_resources = {
@@ -154,6 +168,26 @@ class MultiClusterKubeSpawner(Spawner):
     )
 
     key_template = Unicode("jupyter-{{username}}--{{servername}}", config=True)
+    namespace_template = Unicode(
+        "jupyter-{{username}}",
+        help="""
+        Jinja2 template to generate namespace each user is spawned into.
+        """,
+        config=True,
+    )
+
+    create_namespace = Bool(
+        True,
+        help="""
+        Create namespace for each user when needed.
+
+        For each user, a namespace is created if needed based on namespace_template.
+
+        If set to false, set namespace_template to always resolve to a string that
+        points to an existing template.
+        """,
+        config=True,
+    )
 
     patches = Dict(
         Unicode,
@@ -281,6 +315,7 @@ class MultiClusterKubeSpawner(Spawner):
         super().__init__(*args, **kwargs)
         # Key depends on other params here, so do it last
         self.key = Template(self.key_template).render(**self.template_vars).rstrip("-")
+        self.namespace = Template(self.namespace_template).render(**self.template_vars)
 
         # Store a list of resources we created so we can clean them up
         self.created_resources = []
@@ -298,6 +333,7 @@ class MultiClusterKubeSpawner(Spawner):
             servername=safe_servername,
             unescaped_servername=raw_servername,
             proxy_spec=self.proxy_spec,
+            spawner=self,
         )
 
         return params
@@ -313,7 +349,6 @@ class MultiClusterKubeSpawner(Spawner):
     async def apply_patches(self, resources: List) -> List:
         params = self.template_vars.copy()
         params["key"] = self.key
-        params["spawner"] = self
 
         named_resources = {f"{o['kind']}/{o['metadata']['name']}": o for o in resources}
 
@@ -330,6 +365,8 @@ class MultiClusterKubeSpawner(Spawner):
                 cmd = [
                     "kubectl",
                     "patch",
+                    "-n",
+                    self.namespace,
                     "--local",
                     "-f",
                     f.name,
@@ -438,7 +475,6 @@ class MultiClusterKubeSpawner(Spawner):
         """
         params = self.template_vars.copy()
         params["key"] = self.key
-        params["spawner"] = self
 
         resources = {"limits": {}, "requests": {}}
         if self.mem_guarantee:
@@ -499,6 +535,8 @@ class MultiClusterKubeSpawner(Spawner):
         cmd = [
             "kubectl",
             "apply",
+            "-n",
+            self.namespace,
             "--wait",  # Wait for resources to be 'ready' before returning
             "-f",
             "-",
@@ -527,6 +565,8 @@ class MultiClusterKubeSpawner(Spawner):
     async def kubectl_wait(self, timeout=30):
         cmd = [
             "kubectl",
+            "-n",
+            self.namespace,
             "wait",
             "--for=condition=Ready",
             f"pod/{self.key}",
@@ -550,11 +590,19 @@ class MultiClusterKubeSpawner(Spawner):
             await self.apply_patches(self.get_resources_spec())
         )
 
+        if self.create_namespace:
+            params = self.template_vars.copy()
+            params["key"] = self.key
+            template_resource = yaml.load(
+                self.namespace_resource_template.render(**params)
+            )
+            self.created_resources.insert(0, template_resource)
+
         created_resource_names = " ".join(
             f"{r['kind']}/{r['metadata']['name']}" for r in self.created_resources
         )
         self.log.info(
-            f"Deleting resources for user {self.user.name}: {created_resource_names}"
+            f"Creating resources for user {self.user.name}: {created_resource_names} in namespace {self.namespace}"
         )
         await self.kubectl_apply(self.created_resources)
         await self.kubectl_wait(self.start_timeout)
@@ -572,7 +620,7 @@ class MultiClusterKubeSpawner(Spawner):
     async def stop(self):
         # delete all doesn't seem to delete ingresses, lol?!
         # https://github.com/kubernetes/kubectl/issues/7
-        cmd = ["kubectl", "delete", "-f", "-", "--wait"]
+        cmd = ["kubectl", "delete", "-n", self.namespace, "-f", "-", "--wait"]
         if self.kubernetes_context:
             cmd.append(f"--context={self.kubernetes_context}")
         proc = await asyncio.create_subprocess_exec(
@@ -582,15 +630,27 @@ class MultiClusterKubeSpawner(Spawner):
             stderr=asyncio.subprocess.PIPE,
         )
 
+        # Delete everything that doesn't have a special label telling us to not do that
+        resources_to_delete = [
+            r
+            for r in self.created_resources
+            if r.get("metadata", {})
+            .get("labels", {})
+            .get("mcks.hub.jupyter.org/delete-on-stop", "true")
+            .lower()
+            == "true"
+        ]
         deleted_resource_names = " ".join(
-            f"{r['kind']}/{r['metadata']['name']}" for r in self.created_resources
+            f"{r['kind']}/{r['metadata']['name']}" for r in resources_to_delete
         )
         self.log.info(
-            f"Deleting resources for user {self.user.name}: {deleted_resource_names}"
+            f"Deleting resources for user {self.user.name}: {deleted_resource_names} in namespace {self.namespace}"
         )
-        stdout, stderr = await proc.communicate(
-            json.dumps(self.created_resources).encode()
-        )
+        with StringIO() as s:
+            yaml.dump_all(resources_to_delete, s)
+            s.seek(0)
+            resources_yaml = s.read()
+        stdout, stderr = await proc.communicate(resources_yaml.encode())
 
         ret = await proc.wait()
 
