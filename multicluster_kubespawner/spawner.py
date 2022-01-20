@@ -283,7 +283,7 @@ class MultiClusterKubeSpawner(Spawner):
         self.key = Template(self.key_template).render(**self.template_vars).rstrip("-")
 
         # Store a list of resources we created so we can clean them up
-        self.created_resources = {}
+        self.created_resources = []
 
     @property
     def template_vars(self) -> dict:
@@ -520,7 +520,6 @@ class MultiClusterKubeSpawner(Spawner):
             objs = s.read()
         self.log.debug(f"kubectl applying {objs}")
         stdout, stderr = await proc.communicate(objs.encode())
-        self.created_resources = objs
 
         if (await proc.wait()) != 0:
             raise ValueError(f"kubectl apply failed: {stdout}, {stderr}")
@@ -547,10 +546,17 @@ class MultiClusterKubeSpawner(Spawner):
         # applying any patches defined in self.patches, and finally augmenting the notebook
         # container specifically with things that will be too cumborsome to do in jinja2 or
         # depend on properties that could be changed by any of the patches
-        spec = self.augment_notebook_container(
+        self.created_resources = self.augment_notebook_container(
             await self.apply_patches(self.get_resources_spec())
         )
-        await self.kubectl_apply(spec)
+
+        created_resource_names = " ".join(
+            f"{r['kind']}/{r['metadata']['name']}" for r in self.created_resources
+        )
+        self.log.info(
+            f"Deleting resources for user {self.user.name}: {created_resource_names}"
+        )
+        await self.kubectl_apply(self.created_resources)
         await self.kubectl_wait(self.start_timeout)
 
         # We aren't waiting long enough for the ingress resource to be fully
@@ -575,7 +581,16 @@ class MultiClusterKubeSpawner(Spawner):
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        stdout, stderr = await proc.communicate(self.created_resources.encode())
+
+        deleted_resource_names = " ".join(
+            f"{r['kind']}/{r['metadata']['name']}" for r in self.created_resources
+        )
+        self.log.info(
+            f"Deleting resources for user {self.user.name}: {deleted_resource_names}"
+        )
+        stdout, stderr = await proc.communicate(
+            json.dumps(self.created_resources).encode()
+        )
 
         ret = await proc.wait()
 
